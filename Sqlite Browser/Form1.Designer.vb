@@ -25,10 +25,10 @@ Partial Class Form1
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.ComboBoxTables = New System.Windows.Forms.ComboBox()
         Me.Panel1 = New System.Windows.Forms.Panel()
+        Me.ButtonLoadDB = New System.Windows.Forms.Button()
         Me.TextBoxDBPath = New System.Windows.Forms.TextBox()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label1 = New System.Windows.Forms.Label()
-        Me.ButtonLoadDB = New System.Windows.Forms.Button()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
@@ -63,6 +63,15 @@ Partial Class Form1
         Me.Panel1.Size = New System.Drawing.Size(688, 64)
         Me.Panel1.TabIndex = 5
         '
+        'ButtonLoadDB
+        '
+        Me.ButtonLoadDB.Location = New System.Drawing.Point(353, 36)
+        Me.ButtonLoadDB.Name = "ButtonLoadDB"
+        Me.ButtonLoadDB.Size = New System.Drawing.Size(91, 23)
+        Me.ButtonLoadDB.TabIndex = 8
+        Me.ButtonLoadDB.Text = "Load Database"
+        Me.ButtonLoadDB.UseVisualStyleBackColor = True
+        '
         'TextBoxDBPath
         '
         Me.TextBoxDBPath.Location = New System.Drawing.Point(12, 38)
@@ -88,15 +97,6 @@ Partial Class Form1
         Me.Label1.TabIndex = 5
         Me.Label1.Text = "Tables"
         '
-        'ButtonLoadDB
-        '
-        Me.ButtonLoadDB.Location = New System.Drawing.Point(353, 36)
-        Me.ButtonLoadDB.Name = "ButtonLoadDB"
-        Me.ButtonLoadDB.Size = New System.Drawing.Size(91, 23)
-        Me.ButtonLoadDB.TabIndex = 8
-        Me.ButtonLoadDB.Text = "Load Database"
-        Me.ButtonLoadDB.UseVisualStyleBackColor = True
-        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
@@ -105,7 +105,8 @@ Partial Class Form1
         Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.Panel1)
         Me.Name = "Form1"
-        Me.Text = "Form1"
+        Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+        Me.Text = "Sqlite Browser"
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
         Me.Panel1.ResumeLayout(False)
         Me.Panel1.PerformLayout()
