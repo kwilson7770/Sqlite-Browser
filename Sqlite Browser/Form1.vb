@@ -21,7 +21,7 @@ Public Class Form1
             'Some hard coded stuff for testing
             TextBoxDBPath.Text = "G:\AE\desktop\Database.db3"
         Catch ex As Exception
-            MsgBox(ex.ToString, vbCritical, "Error Loading")
+            MessageBox.Show(ex.ToString, "Error Loading", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
 
@@ -60,7 +60,7 @@ Public Class Form1
                     MyConnection.Close()
                     ReDim ToReturn(DataTable.Rows.Count - 1)
                     For i = 0 To DataTable.Rows.Count - 1
-                        '  MsgBox(DataTable.Rows(i)("Name"))
+                        'MessageBox.Show(DataTable.Rows(i)("Name"))
                         ToReturn(i) = DataTable.Rows(i)("Name").ToString
                     Next
                 End Using
@@ -79,7 +79,7 @@ Public Class Form1
             ReDim ToReturn(Schema.Rows.Count - 1)
             For i = 0 To Schema.Rows.Count - 1
                 ToReturn(i) = Schema.Rows(i) !TABLE_NAME
-                ' MsgBox(Schema.Rows(i) !TABLE_NAME)
+                ' Messagebox.Show(Schema.Rows(i) !TABLE_NAME)
                 'If Not Schema.Rows(i) !TABLE_NAME = "sqlite_sequence" Then ComboBoxTable.Items.Add(Schema.Rows(i) !TABLE_NAME)
             Next
 
@@ -201,10 +201,10 @@ Public Class Form1
             If ComboBoxTables.Items.Count > 0 Then
                 ComboBoxTables.SelectedIndex = 0
             Else
-                MsgBox("Not tables found in the database", vbInformation, "")
+                MessageBox.Show("No tables found in the database", "", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
         Else
-            MsgBox("Could not find the file path specificed", vbCritical, "Error")
+            MessageBox.Show("Could not find the file path specificed", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End If
     End Sub
 End Class
