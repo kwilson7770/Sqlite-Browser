@@ -3,16 +3,6 @@
 'this is 64bit only due to sqlite being 64bit dll
 
 Public Class Form1
-    Enum DBCol
-        TheDate
-        Amount
-        Store
-        Category
-        Comment
-    End Enum
-
-    'Some hard coded stuff for testing
-
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Try
             'Sets up the DataGridView
@@ -32,20 +22,6 @@ Public Class Form1
         DataGridView1.AllowUserToOrderColumns = False
         DataGridView1.AllowUserToResizeColumns = True
         DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells
-    End Sub
-
-    Private Sub CreateTable(DataBasePath As String, TableName As String)
-        Dim MyConnection As New SQLite.SQLiteConnection
-        Dim MyCommand As SQLiteCommand
-        'This will created the database and setup up the table and columns!
-        MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-        MyConnection.Open()
-        MyCommand = MyConnection.CreateCommand
-        'SQL query to Create Table
-        MyCommand.CommandText = "CREATE TABLE " & TableName & " (id INTEGER PRIMARY KEY AUTOINCREMENT, col" & DBCol.TheDate & " TEXT, col" & DBCol.Amount & " FLOAT, col" & DBCol.Store & " TEXT, col" & DBCol.Category & " TEXT, col" & DBCol.Comment & " TEXT);"
-        MyCommand.ExecuteNonQuery()
-        MyCommand.Dispose()
-        MyConnection.Close()
     End Sub
 
     Private Function GetColumnsInTable(DataBasePath As String, TableName As String) As String()
@@ -88,7 +64,7 @@ Public Class Form1
         Return ToReturn
     End Function
 
-    Private Function ReadDataBase(DataBasePath As String, TableName As String) As ArrayList
+    Private Function GetDataBaseRows(DataBasePath As String, TableName As String) As ArrayList
         Dim ToReturn As New ArrayList
         Using MyConnection As New SQLite.SQLiteConnection("Data Source=" & DataBasePath & ";")
             Using MyCommand As New SQLiteCommand("SELECT * FROM " & TableName, MyConnection) 'WHERE id = '0'")
@@ -114,68 +90,6 @@ Public Class Form1
         Return ToReturn
     End Function
 
-    Private Sub UpdateField(DataBasePath As String, ID As Integer, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
-        Dim MyConnection As New SQLite.SQLiteConnection()
-        Dim MyCommand As SQLiteCommand
-        MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-        MyConnection.Open()
-        MyCommand = MyConnection.CreateCommand
-        ''MyCommand.CommandText = "UPDATE " & ComboBoxTable.SelectedItem & " SET (col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment) WHERE id = (@id)"
-        MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
-        MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
-        MyCommand.Parameters.Add("@amount", DbType.Double).Value = Amount
-        MyCommand.Parameters.Add("@store", DbType.String).Value = Store
-        MyCommand.Parameters.Add("@category", DbType.String).Value = Category
-        MyCommand.Parameters.Add("@comment", DbType.String).Value = Comment
-        MyCommand.ExecuteNonQuery()
-        MyCommand.Dispose()
-        MyConnection.Close()
-    End Sub
-
-    Private Function InsertField(DataBasePath As String, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
-        Dim NewID As Integer = -1
-        Dim MyConnection As New SQLite.SQLiteConnection()
-        Dim MyCommand As SQLiteCommand
-        MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-        MyConnection.Open()
-        MyCommand = MyConnection.CreateCommand
-        ''MyCommand.CommandText = "INSERT INTO " & ComboBoxTable.SelectedItem & "(col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment)"
-        'Sets the meaning of the parameters.
-        '(@thedate, @amount, @store, @category, @comment)
-        MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
-        MyCommand.Parameters.Add("@amount", DbType.Double).Value = Amount
-        MyCommand.Parameters.Add("@store", DbType.String).Value = Store
-        MyCommand.Parameters.Add("@category", DbType.String).Value = Category
-        MyCommand.Parameters.Add("@comment", DbType.String).Value = Comment
-        'Runs Query
-        MyCommand.ExecuteNonQuery()
-
-        ''MyCommand.CommandText = "SELECT LAST_INSERT_ROWID() FROM " & ComboBoxTable.SelectedItem
-        MyCommand.Parameters.Clear()
-        Dim LastRowId As Integer = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
-        ''MyCommand.CommandText = "SELECT * FROM " & ComboBoxTable.SelectedItem & " WHERE id=(@lastrowid)"
-        MyCommand.Parameters.Add("@lastrowid", DbType.Int32).Value = LastRowId
-        NewID = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
-
-        MyCommand.Dispose()
-        MyConnection.Close()
-        Return NewID
-    End Function
-
-    Private Sub DeleteField(DataBasePath As String, ID As Integer)
-        Dim MyConnection As New SQLite.SQLiteConnection()
-        Dim MyCommand As SQLiteCommand
-        MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-        MyConnection.Open()
-        MyCommand = MyConnection.CreateCommand
-        'SQL query to Delete Table
-        ''MyCommand.CommandText = "DELETE FROM " & ComboBoxTable.SelectedItem & "WHERE id = (@id);"
-        MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
-        MyCommand.ExecuteNonQuery()
-        MyCommand.Dispose()
-        MyConnection.Close()
-    End Sub
-
     Private Sub ComboBoxTables_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBoxTables.SelectedIndexChanged
         DataGridView1.Rows.Clear()
         DataGridView1.Columns.Clear()
@@ -184,7 +98,7 @@ Public Class Form1
             For Each i In Cols
                 DataGridView1.Columns.Add(i, i)
             Next
-            Dim Data = ReadDataBase(TextBoxDBPath.Text, ComboBoxTables.SelectedItem)
+            Dim Data = GetDataBaseRows(TextBoxDBPath.Text, ComboBoxTables.SelectedItem)
             If Data.Count > 0 Then
                 For Each i As String() In Data
                     DataGridView1.Rows.Add(i)
@@ -207,4 +121,82 @@ Public Class Form1
             MessageBox.Show("Could not find the file path specificed", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End If
     End Sub
+
+#Region "Other Program Code"
+    ''Private Sub UpdateField(DataBasePath As String, ID As Integer, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
+    ''    Dim MyConnection As New SQLite.SQLiteConnection()
+    ''    Dim MyCommand As SQLiteCommand
+    ''    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
+    ''    MyConnection.Open()
+    ''    MyCommand = MyConnection.CreateCommand
+    ''    ''MyCommand.CommandText = "UPDATE " & ComboBoxTable.SelectedItem & " SET (col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment) WHERE id = (@id)"
+    ''    MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
+    ''    MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
+    ''    MyCommand.Parameters.Add("@amount", DbType.Double).Value = Amount
+    ''    MyCommand.Parameters.Add("@store", DbType.String).Value = Store
+    ''    MyCommand.Parameters.Add("@category", DbType.String).Value = Category
+    ''    MyCommand.Parameters.Add("@comment", DbType.String).Value = Comment
+    ''    MyCommand.ExecuteNonQuery()
+    ''    MyCommand.Dispose()
+    ''    MyConnection.Close()
+    ''End Sub
+
+    'Private Function InsertField(DataBasePath As String, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
+    '    Dim NewID As Integer = -1
+    '    Dim MyConnection As New SQLite.SQLiteConnection()
+    '    Dim MyCommand As SQLiteCommand
+    '    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
+    '    MyConnection.Open()
+    '    MyCommand = MyConnection.CreateCommand
+    '    ''MyCommand.CommandText = "INSERT INTO " & ComboBoxTable.SelectedItem & "(col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment)"
+    '    'Sets the meaning of the parameters.
+    '    '(@thedate, @amount, @store, @category, @comment)
+    '    MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
+    '    MyCommand.Parameters.Add("@amount", DbType.Double).Value = Amount
+    '    MyCommand.Parameters.Add("@store", DbType.String).Value = Store
+    '    MyCommand.Parameters.Add("@category", DbType.String).Value = Category
+    '    MyCommand.Parameters.Add("@comment", DbType.String).Value = Comment
+    '    'Runs Query
+    '    MyCommand.ExecuteNonQuery()
+
+    '    ''MyCommand.CommandText = "SELECT LAST_INSERT_ROWID() FROM " & ComboBoxTable.SelectedItem
+    '    MyCommand.Parameters.Clear()
+    '    Dim LastRowId As Integer = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
+    '    ''MyCommand.CommandText = "SELECT * FROM " & ComboBoxTable.SelectedItem & " WHERE id=(@lastrowid)"
+    '    MyCommand.Parameters.Add("@lastrowid", DbType.Int32).Value = LastRowId
+    '    NewID = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
+
+    '    MyCommand.Dispose()
+    '    MyConnection.Close()
+    '    Return NewID
+    'End Function
+
+    ''Private Sub DeleteField(DataBasePath As String, ID As Integer)
+    ''    Dim MyConnection As New SQLite.SQLiteConnection()
+    ''    Dim MyCommand As SQLiteCommand
+    ''    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
+    ''    MyConnection.Open()
+    ''    MyCommand = MyConnection.CreateCommand
+    ''    'SQL query to Delete Table
+    ''    ''MyCommand.CommandText = "DELETE FROM " & ComboBoxTable.SelectedItem & "WHERE id = (@id);"
+    ''    MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
+    ''    MyCommand.ExecuteNonQuery()
+    ''    MyCommand.Dispose()
+    ''    MyConnection.Close()
+    ''End Sub
+
+    ''Private Sub CreateTable(DataBasePath As String, TableName As String)
+    ''    Dim MyConnection As New SQLite.SQLiteConnection
+    ''    Dim MyCommand As SQLiteCommand
+    ''    'This will created the database and setup up the table and columns!
+    ''    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
+    ''    MyConnection.Open()
+    ''    MyCommand = MyConnection.CreateCommand
+    ''    'SQL query to Create Table
+    ''    '   MyCommand.CommandText = "CREATE TABLE " & TableName & " (id INTEGER PRIMARY KEY AUTOINCREMENT, col" & DBCol.TheDate & " TEXT, col" & DBCol.Amount & " FLOAT, col" & DBCol.Store & " TEXT, col" & DBCol.Category & " TEXT, col" & DBCol.Comment & " TEXT);"
+    ''    MyCommand.ExecuteNonQuery()
+    ''    MyCommand.Dispose()
+    ''    MyConnection.Close()
+    ''End Sub
+#End Region
 End Class
