@@ -22,13 +22,17 @@ Partial Class Form1
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
+        Me.components = New System.ComponentModel.Container()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.ComboBoxTables = New System.Windows.Forms.ComboBox()
         Me.Panel1 = New System.Windows.Forms.Panel()
+        Me.ButtonSave = New System.Windows.Forms.Button()
         Me.ButtonLoadDB = New System.Windows.Forms.Button()
         Me.TextBoxDBPath = New System.Windows.Forms.TextBox()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label1 = New System.Windows.Forms.Label()
+        Me.ListBoxDebugger = New System.Windows.Forms.ListBox()
+        Me.TimerDebugger = New System.Windows.Forms.Timer(Me.components)
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
@@ -39,11 +43,12 @@ Partial Class Form1
         Me.DataGridView1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.DataGridView1.Location = New System.Drawing.Point(0, 64)
         Me.DataGridView1.Name = "DataGridView1"
-        Me.DataGridView1.Size = New System.Drawing.Size(688, 366)
+        Me.DataGridView1.Size = New System.Drawing.Size(688, 297)
         Me.DataGridView1.TabIndex = 3
         '
         'ComboBoxTables
         '
+        Me.ComboBoxTables.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBoxTables.FormattingEnabled = True
         Me.ComboBoxTables.Location = New System.Drawing.Point(450, 36)
         Me.ComboBoxTables.Name = "ComboBoxTables"
@@ -52,6 +57,7 @@ Partial Class Form1
         '
         'Panel1
         '
+        Me.Panel1.Controls.Add(Me.ButtonSave)
         Me.Panel1.Controls.Add(Me.ButtonLoadDB)
         Me.Panel1.Controls.Add(Me.TextBoxDBPath)
         Me.Panel1.Controls.Add(Me.Label2)
@@ -62,6 +68,15 @@ Partial Class Form1
         Me.Panel1.Name = "Panel1"
         Me.Panel1.Size = New System.Drawing.Size(688, 64)
         Me.Panel1.TabIndex = 5
+        '
+        'ButtonSave
+        '
+        Me.ButtonSave.Location = New System.Drawing.Point(582, 34)
+        Me.ButtonSave.Name = "ButtonSave"
+        Me.ButtonSave.Size = New System.Drawing.Size(94, 23)
+        Me.ButtonSave.TabIndex = 9
+        Me.ButtonSave.Text = "Save Changes"
+        Me.ButtonSave.UseVisualStyleBackColor = True
         '
         'ButtonLoadDB
         '
@@ -97,6 +112,21 @@ Partial Class Form1
         Me.Label1.TabIndex = 5
         Me.Label1.Text = "Tables"
         '
+        'ListBoxDebugger
+        '
+        Me.ListBoxDebugger.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.ListBoxDebugger.FormattingEnabled = True
+        Me.ListBoxDebugger.HorizontalScrollbar = True
+        Me.ListBoxDebugger.Location = New System.Drawing.Point(0, 361)
+        Me.ListBoxDebugger.Name = "ListBoxDebugger"
+        Me.ListBoxDebugger.Size = New System.Drawing.Size(688, 69)
+        Me.ListBoxDebugger.TabIndex = 6
+        Me.ListBoxDebugger.Visible = False
+        '
+        'TimerDebugger
+        '
+        Me.TimerDebugger.Interval = 500
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
@@ -104,6 +134,7 @@ Partial Class Form1
         Me.ClientSize = New System.Drawing.Size(688, 430)
         Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.Panel1)
+        Me.Controls.Add(Me.ListBoxDebugger)
         Me.Name = "Form1"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "Sqlite Browser"
@@ -121,4 +152,7 @@ Partial Class Form1
     Friend WithEvents Label2 As Label
     Friend WithEvents Label1 As Label
     Friend WithEvents ButtonLoadDB As Button
+    Friend WithEvents ListBoxDebugger As ListBox
+    Friend WithEvents TimerDebugger As Timer
+    Friend WithEvents ButtonSave As Button
 End Class

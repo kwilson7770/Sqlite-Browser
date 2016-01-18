@@ -3,27 +3,92 @@
 'this is 64bit only due to sqlite being 64bit dll
 
 Public Class Form1
-    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Try
-            'Sets up the DataGridView
-            SetupDGView()
 
-            'Some hard coded stuff for testing
-            TextBoxDBPath.Text = "G:\AE\desktop\Database.db3"
-        Catch ex As Exception
-            MessageBox.Show(ex.ToString, "Error Loading", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        End Try
+#Region "Enums"
+    Enum ChangeIndex
+        PrimayKey
+        ColName
+        ChangeType
+        OriginalValue
+        NewValue
+    End Enum
+
+    Enum ChangeType
+        ModfiyVaule
+        InsertRow
+        DeleteRow
+    End Enum
+
+    Enum DGVTag
+        PrimaryKeyColIndex
+    End Enum
+#End Region
+
+#Region "Variables"
+    Dim Changes As New ArrayList
+    Dim TableName As String
+    Dim AppDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) & "\Sqlite Browser\"
+#End Region
+
+#Region "DataGridView Code"
+    Private Sub DataGridView1_CellBeginEdit(sender As Object, e As DataGridViewCellCancelEventArgs) Handles DataGridView1.CellBeginEdit
+        Dim DataPK = DataGridView1.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex)), e.RowIndex).Value
+        Dim ColName = DataGridView1.Columns.Item(e.ColumnIndex).Name
+        If ChangesContainsPKAndColName(DataPK, ColName) = -1 Then
+            Dim TempArray(System.Enum.GetValues(GetType(ChangeIndex)).Length - 1)
+            TempArray(ChangeIndex.PrimayKey) = DataPK
+            TempArray(ChangeIndex.ColName) = ColName
+            TempArray(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule
+            TempArray(ChangeIndex.OriginalValue) = DataGridView1.Item(e.ColumnIndex, e.RowIndex).Value
+            Changes.Add(TempArray)
+        End If
     End Sub
 
-    Private Sub SetupDGView()
-        'some properties to setup
-        DataGridView1.AllowUserToAddRows = True
-        DataGridView1.AllowUserToDeleteRows = True
-        DataGridView1.AllowUserToOrderColumns = False
-        DataGridView1.AllowUserToResizeColumns = True
-        DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells
+    Private Sub DataGridView1_CellEndEdit(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellEndEdit
+        Dim DataPK = DataGridView1.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex)), e.RowIndex).Value
+        Dim ColName = DataGridView1.Columns.Item(e.ColumnIndex).Name
+        Dim Index = ChangesContainsPKAndColName(DataPK, ColName)
+        Dim TempArray = Changes(Index)
+        If TempArray(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule Then
+            Dim NewValue = DataGridView1.Item(e.ColumnIndex, e.RowIndex).Value
+            If IsNothing(NewValue) Then NewValue = ""
+            NewValue = NewValue.ToString.Trim
+            If TempArray(ChangeIndex.OriginalValue) <> NewValue Then
+                'set/update the new value to be written later
+                Changes.Item(Index)(ChangeIndex.NewValue) = NewValue
+            Else
+                'if the original value is the same as the changed value, remove it from the changes array
+                Changes.RemoveAt(Index)
+            End If
+        End If
+    End Sub
+#End Region
+
+#Region "Buttons"
+    Private Sub ButtonSave_Click(sender As Object, e As EventArgs) Handles ButtonSave.Click
+        SaveChanges(False)
     End Sub
 
+    Private Sub ButtonLoadDB_Click(sender As Object, e As EventArgs) Handles ButtonLoadDB.Click
+        If IO.File.Exists(TextBoxDBPath.Text) Then
+            SaveCookie()
+            If Changes.Count > 0 Then SaveChanges(True)
+            ComboBoxTables.Items.Clear()
+            For Each i In GetTablesInDataBase(TextBoxDBPath.Text)
+                ComboBoxTables.Items.Add(i)
+            Next
+            If ComboBoxTables.Items.Count > 0 Then
+                ComboBoxTables.SelectedIndex = 0
+            Else
+                MessageBox.Show("No tables found in the database", "", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            End If
+        Else
+            MessageBox.Show("Could not find the file path specificed", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End If
+    End Sub
+#End Region
+
+#Region "SQL Code"
     Private Function GetColumnsInTable(DataBasePath As String, TableName As String) As String()
         Dim DataTable = New DataTable, ToReturn() As String = Nothing
 
@@ -37,6 +102,17 @@ Public Class Form1
                     ReDim ToReturn(DataTable.Rows.Count - 1)
                     For i = 0 To DataTable.Rows.Count - 1
                         'MessageBox.Show(DataTable.Rows(i)("Name"))
+                        'MessageBox.Show(DataTable.Rows(i)("pk"))
+                        Dim PrimaryKeyIndex = DataTable.Rows(i)("pk")
+                        If IsNumeric(PrimaryKeyIndex) Then
+                            If PrimaryKeyIndex > 0 Then
+                                If IsNothing(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex)) Then 'need to check for null first before checking the value
+                                    DataGridView1.Tag(DGVTag.PrimaryKeyColIndex) = PrimaryKeyIndex - 1
+                                ElseIf DataGridView1.Tag(DGVTag.PrimaryKeyColIndex) <> PrimaryKeyIndex - 1 Then
+                                    DataGridView1.Tag(DGVTag.PrimaryKeyColIndex) = PrimaryKeyIndex - 1
+                                End If
+                            End If
+                        End If
                         ToReturn(i) = DataTable.Rows(i)("Name").ToString
                     Next
                 End Using
@@ -70,8 +146,8 @@ Public Class Form1
             Using MyCommand As New SQLiteCommand("SELECT * FROM " & TableName, MyConnection) 'WHERE id = '0'")
                 MyConnection.Open()
                 Using SQLreader As SQLiteDataReader = MyCommand.ExecuteReader()
+                    Dim Cols = GetColumnsInTable(DataBasePath, TableName)
                     While SQLreader.Read()
-                        Dim Cols = GetColumnsInTable(DataBasePath, TableName)
                         Dim TempArray(Cols.Length - 1) As String
                         For i = 0 To Cols.Length - 1
                             Dim Read = SQLreader(Cols(i))
@@ -90,57 +166,176 @@ Public Class Form1
         Return ToReturn
     End Function
 
-    Private Sub ComboBoxTables_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBoxTables.SelectedIndexChanged
-        DataGridView1.Rows.Clear()
-        DataGridView1.Columns.Clear()
-        Dim Cols = GetColumnsInTable(TextBoxDBPath.Text, ComboBoxTables.SelectedItem)
-        If Not IsNothing(Cols) Then
-            For Each i In Cols
-                DataGridView1.Columns.Add(i, i)
+    Private Sub UpdateFields(DataBasePath As String, PrimayKeyColName As String, DataArrayList As ArrayList)
+        'The Data array needs to be a jagged array (arrays nested in an array)
+        'The first index needs to be an array containing the column names
+        'The second index needs to be an array containing the values to be updated in the same order as the column names
+        'The third index needs to be the ID of the rows to be updated
+        'Note, only 1 row (tied to 1 primary key) can be updated at a time.
+
+        Using MyConnection As New SQLite.SQLiteConnection("Data Source=" & DataBasePath & ";")
+            Dim Commands As New ArrayList
+            For Each TheData In DataArrayList
+                Dim SetInfo = ""
+                Dim MyCommand As New SQLiteCommand(MyConnection)
+                If TheData.Length = 3 Then 'Checks to see if the array is three indexes long (see above for structure)
+                    If TheData(0).Length = TheData(1).Length Then 'Makes sure the cols array and the values array are the same length (doesn't check to see if they are in the right order though. This must be done before being passed)
+                        For i = 0 To TheData(0).Length - 1 'Goes through the length of the two arrays
+                            SetInfo += TheData(0)(i) & " = @parama" & i & ", " 'combines the column name to a parameter name
+                            MyCommand.Parameters.Add("@parama" & i, ReturnDBType(VarType(TheData(1)(i)))).Value = TheData(1)(i) 'sets the value to the parameter name and gets the data type and set's that as well
+                        Next
+
+                        If SetInfo.EndsWith(", ") Then SetInfo = SetInfo.Substring(0, SetInfo.LastIndexOf(", ")) 'removes the extra delimiter
+                    Else
+                        MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        Exit Sub
+                    End If
+                Else
+                    MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Exit Sub
+                End If
+
+                MyCommand.Parameters.Add("@PrimayKey", DbType.Int32).Value = TheData(2) 'Adds the final parameter
+                MyCommand.CommandText = "UPDATE " & TableName & " SET " & SetInfo & " WHERE " & PrimayKeyColName & " = @PrimayKey" 'sets the command text
+                Commands.Add(MyCommand) 'adds the command to an array to be batch processed later
             Next
-            Dim Data = GetDataBaseRows(TextBoxDBPath.Text, ComboBoxTables.SelectedItem)
-            If Data.Count > 0 Then
-                For Each i As String() In Data
-                    DataGridView1.Rows.Add(i)
-                Next
+
+            MyConnection.Open()
+            For Each TheCommand As SQLiteCommand In Commands 'batch processes the commands
+                TheCommand.ExecuteNonQuery()
+            Next
+            MyConnection.Close()
+        End Using
+    End Sub
+
+    Private Function ReturnDBType(Type As VariantType)
+        Select Case Type
+            Case VariantType.Array
+                MessageBox.Show("The array type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Boolean
+                Return DbType.Boolean
+            Case VariantType.Byte
+                Return DbType.Byte
+            Case VariantType.Char
+                MessageBox.Show("The char type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Currency
+                Return DbType.Currency
+            Case VariantType.DataObject
+                MessageBox.Show("The data object type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Date
+                Return DbType.DateTime
+            Case VariantType.Decimal
+                Return DbType.Decimal
+            Case VariantType.Double
+                Return DbType.Double
+            Case VariantType.Empty
+                MessageBox.Show("The empty type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Error
+                MessageBox.Show("The error type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Integer
+                Return DbType.Int32
+            Case VariantType.Long
+                Return DbType.Int64
+            Case VariantType.Null
+                MessageBox.Show("The null type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Object
+                Return DbType.Object
+            Case VariantType.Short
+                Return DbType.Int16
+            Case VariantType.Single
+                Return DbType.Single
+            Case VariantType.String
+                Return DbType.String
+            Case VariantType.UserDefinedType
+                MessageBox.Show("The user defined type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case VariantType.Variant
+                MessageBox.Show("The variant type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Case Else
+                MessageBox.Show("The unknown types is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Select
+        Return Nothing
+    End Function
+#End Region
+
+#Region "Loading/Closing Stuff"
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Try
+            'Sets up the DataGridView
+            SetupDGView()
+
+            'Reads the last file that existed when loading the database. If done right it will auto-setup your last database file path
+            ReadCookie()
+
+            'Debug mode (True = True equals on)
+            If True = False Then
+                ListBoxDebugger.Visible = True
+                TimerDebugger.Start()
             End If
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString, "Error Loading", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Me.Close()
+        End Try
+    End Sub
+
+    Private Sub SetupDGView()
+        'some properties to setup
+        DataGridView1.AllowUserToAddRows = True
+        DataGridView1.AllowUserToDeleteRows = True
+        DataGridView1.AllowUserToOrderColumns = False
+        DataGridView1.AllowUserToResizeColumns = True
+        DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells
+        Dim Temp(System.Enum.GetValues(GetType(DGVTag)).Length - 1) As Object 'sets up a blank object that will be used an array of any type of data
+        DataGridView1.Tag = Temp
+    End Sub
+
+    Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+        If Changes.Count > 0 Then SaveChanges(True)
+    End Sub
+#End Region
+
+#Region "Cookie Stuff"
+    Private Sub ReadCookie()
+        If Not IO.Directory.Exists(AppDataDir) Then IO.Directory.CreateDirectory(AppDataDir)
+        If IO.File.Exists(AppDataDir & "cookie") Then
+            Try
+                TextBoxDBPath.Text = IO.File.ReadAllText(AppDataDir & "cookie")
+            Catch 'Don't care about errors
+            End Try
         End If
     End Sub
 
-    Private Sub ButtonLoadDB_Click(sender As Object, e As EventArgs) Handles ButtonLoadDB.Click
-        If IO.File.Exists(TextBoxDBPath.Text) Then
-            For Each i In GetTablesInDataBase(TextBoxDBPath.Text)
-                ComboBoxTables.Items.Add(i)
-            Next
-            If ComboBoxTables.Items.Count > 0 Then
-                ComboBoxTables.SelectedIndex = 0
-            Else
-                MessageBox.Show("No tables found in the database", "", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            End If
+    Private Sub SaveCookie()
+        If Not IO.Directory.Exists(AppDataDir) Then IO.Directory.CreateDirectory(AppDataDir)
+        Try
+            IO.File.WriteAllText(AppDataDir & "cookie", TextBoxDBPath.Text)
+        Catch 'Don't care about errors
+        End Try
+    End Sub
+#End Region
+
+#Region "Debug Stuff"
+    Private Sub TimerDebugger_Tick(sender As Object, e As EventArgs) Handles TimerDebugger.Tick
+        Dim DoIt = False
+        If ListBoxDebugger.Items.Count <> Changes.Count Then
+            DoIt = True
         Else
-            MessageBox.Show("Could not find the file path specificed", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            For i = 0 To Changes.Count - 1
+                If Join(Changes(i), " | ") <> ListBoxDebugger.Items(i) Then
+                    DoIt = True
+                    Exit For
+                End If
+            Next
+        End If
+        If DoIt Then
+            ListBoxDebugger.Items.Clear()
+            For Each i In Changes
+                ListBoxDebugger.Items.Add(Join(i, " | "))
+            Next
         End If
     End Sub
+#End Region
 
 #Region "Other Program Code"
-    ''Private Sub UpdateField(DataBasePath As String, ID As Integer, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
-    ''    Dim MyConnection As New SQLite.SQLiteConnection()
-    ''    Dim MyCommand As SQLiteCommand
-    ''    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-    ''    MyConnection.Open()
-    ''    MyCommand = MyConnection.CreateCommand
-    ''    ''MyCommand.CommandText = "UPDATE " & ComboBoxTable.SelectedItem & " SET (col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment) WHERE id = (@id)"
-    ''    MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
-    ''    MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
-    ''    MyCommand.Parameters.Add("@amount", DbType.Double).Value = Amount
-    ''    MyCommand.Parameters.Add("@store", DbType.String).Value = Store
-    ''    MyCommand.Parameters.Add("@category", DbType.String).Value = Category
-    ''    MyCommand.Parameters.Add("@comment", DbType.String).Value = Comment
-    ''    MyCommand.ExecuteNonQuery()
-    ''    MyCommand.Dispose()
-    ''    MyConnection.Close()
-    ''End Sub
-
     'Private Function InsertField(DataBasePath As String, TheDate As String, Amount As Double, Store As String, Category As String, Optional Comment As String = "")
     '    Dim NewID As Integer = -1
     '    Dim MyConnection As New SQLite.SQLiteConnection()
@@ -199,4 +394,84 @@ Public Class Form1
     ''    MyConnection.Close()
     ''End Sub
 #End Region
+
+#Region "To Be Organized"
+    Private Sub ComboBoxTables_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBoxTables.SelectedIndexChanged
+        If Changes.Count > 0 Then SaveChanges(True) 'The TableName global variable below hasn't updated to the current selection so I can still save changes before everything is cleared
+        TableName = ComboBoxTables.SelectedItem 'I need to set a global variable instead of just using the control because I cannot easily capture what the value is before it is changed. Since most of the events are post-change I would not be able to do a save changes before everything was reset. So this global variable will allow me to save changes with the previous selection before everything is cleared out and deleted
+        DataGridView1.Rows.Clear()
+        DataGridView1.Columns.Clear()
+        Dim Cols = GetColumnsInTable(TextBoxDBPath.Text, TableName)
+        If Not IsNothing(Cols) Then
+            For Each i In Cols
+                DataGridView1.Columns.Add(i, i)
+            Next
+            Dim Data = GetDataBaseRows(TextBoxDBPath.Text, TableName)
+            If Data.Count > 0 Then
+                For Each i As String() In Data
+                    DataGridView1.Rows.Add(i)
+                Next
+            End If
+            DataGridView1.Columns.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex))).ReadOnly = True
+        End If
+
+    End Sub
+
+    Private Sub SaveChanges(Prompt As Boolean)
+        If Prompt Then
+            If MessageBox.Show("There are unsaved changes, would you like to save them?", "", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) = DialogResult.No Then Exit Sub
+        End If
+        Changes.Sort(New FirstElementJaggedComparer) 'A custom sorting class that sorts the first elements in the array and tries to convert them to doubles for better sorting
+        Dim GroupedChanges, TempCol, TempValue As New ArrayList 'All used to group together the changes with the same ID to send fewer SQL update commands
+        Dim LastPK = ""
+        For Each i In Changes
+            If i(ChangeIndex.PrimayKey) = LastPK Then
+                'since the PK is the same, group these together and add them to the temp arrays
+                TempCol.Add(i(ChangeIndex.ColName))
+                TempValue.Add(i(ChangeIndex.NewValue))
+            Else
+                'Adds the grouped together values with the primary key to a jagged array. The first time it will not do this so an if statement prevents errors
+                If TempCol.Count > 0 Then 'to do sort these so they are in the order of the columns in the database (if it is more efficent with sqlite)
+                    GroupedChanges.Add({TempCol.ToArray, TempValue.ToArray, LastPK})
+                End If
+
+                'Resets the temp array lists for the new group
+                TempCol.Clear()
+                TempValue.Clear()
+                LastPK = i(ChangeIndex.PrimayKey) 'updates the last PK to be the current one
+                'Adds the current item to the temp arrays
+                TempCol.Add(i(ChangeIndex.ColName))
+                TempValue.Add(i(ChangeIndex.NewValue))
+            End If
+        Next
+
+        If TempCol.Count > 0 Then 'don't forget about the last group!
+            GroupedChanges.Add({TempCol.ToArray, TempValue.ToArray, LastPK})
+            TempCol.Clear()
+            TempValue.Clear()
+        End If
+
+        For Each i In GroupedChanges
+            UpdateFields(TextBoxDBPath.Text, DataGridView1.Columns.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex))).Name, GroupedChanges)
+        Next
+
+        Changes.Clear()
+    End Sub
+
+    Private Function ChangesContainsPKAndColName(PrimayKey As Int32, ColName As String) As Int32
+        For i = 0 To Changes.Count - 1
+            If Changes(i)(ChangeIndex.PrimayKey) = PrimayKey And Changes(i)(ChangeIndex.ColName).Contains(ColName) Then Return i
+        Next
+        Return -1
+    End Function
+#End Region
+End Class
+Class FirstElementJaggedComparer 'A custom sorting class that sorts the first elements in the array and tries to convert them to doubles for better sorting
+    Implements IComparer
+    Public Function Compare(ByVal x As Object, ByVal y As Object) As Integer Implements IComparer.Compare
+        Dim Sort1 = x(0), Sort2 = y(0)
+        If IsNumeric(Sort1) Then Sort1 = CDbl(Sort1)
+        If IsNumeric(Sort2) Then Sort2 = CDbl(Sort2)
+        Return Sort1.CompareTo(Sort2)
+    End Function
 End Class
