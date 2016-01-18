@@ -9,6 +9,7 @@ Public Class Form1
 #Region "Enums"
     Enum ChangeIndex
         ID
+        ColName
         ChangeType
         OriginalValue
         NewValue
@@ -38,7 +39,7 @@ Public Class Form1
             TextBoxDBPath.Text = "G:\AE\desktop\Database.db3"
 
             'Debug option
-            If True = False Then
+            If True = True Then
                 ListBoxDebugger.Visible = True
                 TimerDebugger.Start()
             End If
@@ -172,9 +173,11 @@ Public Class Form1
 
     Private Sub DataGridView1_CellBeginEdit(sender As Object, e As DataGridViewCellCancelEventArgs) Handles DataGridView1.CellBeginEdit
         Dim DGVValue = DataGridView1.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyCol)), e.RowIndex).Value
-        If ChangesContainsID(DGVValue) = -1 Then
+        Dim ColName = DataGridView1.Columns.Item(e.ColumnIndex).Name
+        If ChangesContainsIDAndColName(DGVValue, ColName) = -1 Then
             Dim TempArray(System.Enum.GetValues(GetType(ChangeIndex)).Length - 1)
             TempArray(ChangeIndex.ID) = DGVValue
+            TempArray(ChangeIndex.ColName) = ColName
             TempArray(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule
             TempArray(ChangeIndex.OriginalValue) = DataGridView1.Item(e.ColumnIndex, e.RowIndex).Value
             Changes.Add(TempArray)
@@ -182,8 +185,9 @@ Public Class Form1
     End Sub
 
     Private Sub DataGridView1_CellEndEdit(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellEndEdit
-        Dim DGVValue = DataGridView1.Item(cint(DataGridView1.Tag(DGVTag.PrimaryKeyCol)), e.RowIndex).Value
-        Dim Index = ChangesContainsID(DGVValue)
+        Dim DGVValue = DataGridView1.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyCol)), e.RowIndex).Value
+        Dim ColName = DataGridView1.Columns.Item(e.ColumnIndex).Name
+        Dim Index = ChangesContainsIDAndColName(DGVValue, ColName)
         Dim TempArray = Changes(Index)
         If TempArray(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule Then
             Dim NewValue = DataGridView1.Item(e.ColumnIndex, e.RowIndex).Value
@@ -199,9 +203,9 @@ Public Class Form1
         End If
     End Sub
 
-    Private Function ChangesContainsID(ID As Int32) As Int32
+    Private Function ChangesContainsIDAndColName(ID As Int32, ColName As String) As Int32
         For i = 0 To Changes.Count - 1
-            If Changes(i)(ChangeIndex.ID) = ID Then Return i
+            If Changes(i)(ChangeIndex.ID) = ID And Changes(i)(ChangeIndex.ColName) = ColName Then Return i
         Next
         Return -1
     End Function
@@ -266,7 +270,7 @@ Public Class Form1
     End Sub
 
     Private Function ReturnDBType(Type As VariantType)
-        Select Case VarType(Type)
+        Select Case Type
             Case VariantType.Array
                 MessageBox.Show("The array type is not supported", "", MessageBoxButtons.OK, MessageBoxIcon.Error)
             Case VariantType.Boolean
@@ -334,64 +338,76 @@ Public Class Form1
         'so with that being said, I just need to do a bunch of quereies. I will build the quiereis into an array and execture them while still connected
 
         Dim IDColName = "id"
+        Dim DataBasePath = TextBoxDBPath.Text
 
-        Dim Data As New ArrayList
-        Dim ColData = {"col0", "col1", "col2", "col3", "col4"}
-        Dim Temp2 = {"Test 1,0 " & Now.ToLongTimeString, "Test 1,1", "Test 1,2", "Test 1,3", "Test 1,4"}
-        Data.Add({1, Temp2})
-        Temp2 = {"Test 2,0", "Test 2,1 " & Now.ToLongTimeString, "Test 2,2", "Test 2,3", "Test 2,4"}
-        Data.Add({2, Temp2})
-        Temp2 = {"Test 3,0", "Test 3,1", "Test 3,2 " & Now.ToLongTimeString, "Test 3,3", "Test 3,4"}
-        Data.Add({3, Temp2})
-        Temp2 = {"Test 4,0", "Test 4,1", "Test 4,2", "Test 4,3 " & Now.ToLongTimeString, "Test 4,4"}
-        Data.Add({4, Temp2})
-        Temp2 = {"Test 5,0", "Test 5,1", "Test 5,2", "Test 5,3", "Test 5,4 " & Now.ToLongTimeString}
-        Data.Add({5, Temp2})
+        Dim DataArrayList As New ArrayList
 
-        Using MyConnection As New SQLite.SQLiteConnection("Data Source=" & TextBoxDBPath.Text & ";")
-            Using MyCommand As New SQLiteCommand("", MyConnection)
+        Dim Cols, Values, ID As Object
+        Values = {"Test 1,0 " & Now.ToLongTimeString, "Test 1,1", "Test 1,2", "Test 1,3", "Test 1,4"}
+        ID = 1
+        Cols = {"col0", "col1", "col2", "col3", "col4"}
+        DataArrayList.Add({Cols, Values, ID})
 
-                Dim ColNames = "", ParamterNames = "", Command = "", IDs = "", UpdateIDVar = True
-                For i = 0 To ColData.Length - 1
-                    Command += ColData(i) & " = CASE " & IDColName & " "
-                    For Each j In Data
-                        If j.Length = 2 Then 'should be an array with 2 items in it (1 int and 1 array)
-                            If IsNumeric(j(0)) And j(1).Length = ColData.Length Then 'checks to make sure the ID is a number and the values being updated have the same number of columns
-                                Command += "WHEN " & j(0) & " THEN '" & j(1)(i) & "' "
-                                If UpdateIDVar Then IDs += j(0) & ", "
-                                ''ColNames += i(0)(j) & ", "
-                                ''ParamterNames += "@parama" & j & ", "
-                                ''MyCommand.Parameters.Add("@parama" & j, ReturnDBType(VarType(i(1)(j)))).Value = i(1)(j)
-                                ''If ColNames.EndsWith(", ") Then ColNames = ColNames.Substring(0, ColNames.LastIndexOf(", "))
-                                ''If ParamterNames.EndsWith(", ") Then ParamterNames = ParamterNames.Substring(0, ParamterNames.LastIndexOf(", "))
-                            Else
-                                MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                                Exit Sub
-                            End If
-                        Else
-                            MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                            Exit Sub
-                        End If
-                    Next
-                    If UpdateIDVar Then UpdateIDVar = False
-                    Command += "END, "
-                Next
-                If Command.EndsWith(", ") Then Command = Command.Substring(0, Command.LastIndexOf(", "))
-                If IDs.EndsWith(", ") Then IDs = IDs.Substring(0, IDs.LastIndexOf(", "))
+        ''Values = {"Test 2,0", "Test 2,1 " & Now.ToLongTimeString, "Test 2,2", "Test 2,3", "Test 2,4"}
+        ''ID = 1
+        ''Cols = {"col0", "col1", "col2", "col3", "col4"}
+        ''DataArrayList.Add({Cols, Values, ID})
 
-                Command += " WHERE " & IDColName & " IN (" & IDs & ")"
+        ''Values = {"Test 3,0", "Test 3,1", "Test 3,2 " & Now.ToLongTimeString, "Test 3,3", "Test 3,4"}
+        ''ID = 1
+        ''Cols = {"col0", "col1", "col2", "col3", "col4"}
+        ''DataArrayList.Add({Cols, Values, ID})
+
+        ''Values = {Now.ToLongTimeString}
+        ''ID = 1
+        ''Cols = {"col4"}
+        ''DataArrayList.Add({Cols, Values, ID})
+
+        Using MyConnection As New SQLite.SQLiteConnection("Data Source=" & DataBasePath & ";")
+
+            Dim Commands As New ArrayList
+            For Each TheData In DataArrayList
+                Dim ColNames = "", ParamterNames = ""
+                Dim MyCommand As New SQLiteCommand("", MyConnection)
+                If TheData.Length = 3 Then
+                    If TheData(0).Length = TheData(1).Length Then
+                        For i = 0 To TheData(0).Length - 1
+                            ColNames += TheData(0)(i) & ", "
+                            ParamterNames += "@parama" & i & ", "
+                            MyCommand.Parameters.Add("@parama" & i, ReturnDBType(VarType(TheData(1)(i)))).Value = TheData(1)(i)
+                        Next
+
+                        If ColNames.EndsWith(", ") Then ColNames = ColNames.Substring(0, ColNames.LastIndexOf(", "))
+                        If ParamterNames.EndsWith(", ") Then ParamterNames = ParamterNames.Substring(0, ParamterNames.LastIndexOf(", "))
+                    Else
+                        MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        Exit Sub
+                    End If
+                Else
+                    MessageBox.Show("Something went terribly wrong!", "Error Updating Fields", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Exit Sub
+                End If
+
+                MyCommand.Parameters.Add("@id", DbType.Int32).Value = TheData(2)
+                MyCommand.CommandText = "UPDATE " & ComboBoxTables.SelectedItem & " SET (" & ColNames & ") VALUES (" & ParamterNames & ") WHERE " & IDColName & " = (@id)"
+                Commands.Add(MyCommand)
+            Next
 
 
+            MyConnection.Open()
+            For Each TheCommand As SQLiteCommand In Commands
+                TheCommand.Connection = MyConnection 
+                TheCommand.ExecuteNonQuery()
+                'MsgBox(TheCommand.CommandText & vbCr & TheCommand.Parameters.Item(0).Value)
+            Next
+            MyConnection.Close()
 
-                ' MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
-
-                MyCommand.CommandText = "UPDATE " & ComboBoxTables.SelectedItem & " SET " & Command
-
-                MyConnection.Open()
-                MyCommand.ExecuteNonQuery()
-                MyConnection.Close()
-            End Using
         End Using
+
+    End Sub
+
+    Private Sub Panel1_Paint(sender As Object, e As PaintEventArgs) Handles Panel1.Paint
+
     End Sub
 
 #Region "Other Program Code"
