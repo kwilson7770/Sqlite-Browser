@@ -1,7 +1,5 @@
-﻿Imports System.ComponentModel
+﻿Imports System.ComponentModel 'Automatically added by Visual Studio when creating the ContexMenuStrip event
 Imports System.Data.SQLite
-'Make a refrence to C:\Program Files\System.Data.SQLite\2010\bin\System.Data.SQLite.dll
-'this is 64bit only due to sqlite being 64bit dll
 
 Public Class Form1
 
@@ -29,6 +27,7 @@ Public Class Form1
     Dim Changes As New ArrayList
     Dim TableName As String
     Dim AppDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) & "\Sqlite Browser\"
+    Dim ChangedValueColor = Color.Yellow, DeletedRowColor = Color.Red
 #End Region
 
 #Region "DataGridView Code"
@@ -57,9 +56,13 @@ Public Class Form1
             If TempArray(ChangeIndex.OriginalValue) <> NewValue Then
                 'set/update the new value to be written later
                 Changes.Item(Index)(ChangeIndex.NewValue) = NewValue
+                DataGridView1.Item(e.ColumnIndex, e.RowIndex).Style.BackColor = ChangedValueColor
+                DataGridView1.Item(e.ColumnIndex, e.RowIndex).ToolTipText = "This value was changed. It was originally:" & vbCrLf & TempArray(ChangeIndex.OriginalValue)
             Else
                 'if the original value is the same as the changed value, remove it from the changes array
                 Changes.RemoveAt(Index)
+                DataGridView1.Item(e.ColumnIndex, e.RowIndex).Style.BackColor = DataGridView1.DefaultCellStyle.BackColor
+                DataGridView1.Item(e.ColumnIndex, e.RowIndex).ToolTipText = ""
             End If
         End If
     End Sub
