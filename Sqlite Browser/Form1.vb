@@ -70,7 +70,7 @@ Public Class Form1
 
 #Region "Buttons"
     Private Sub ButtonSave_Click(sender As Object, e As EventArgs) Handles ButtonSave.Click
-        SaveChanges(False)
+        SaveChanges(False, True) 'this is the only place where I need to clear out the deleted rows so far
     End Sub
 
     Private Sub ButtonLoadDB_Click(sender As Object, e As EventArgs) Handles ButtonLoadDB.Click
@@ -420,7 +420,7 @@ Public Class Form1
 
     End Sub
 
-    Private Sub SaveChanges(Prompt As Boolean)
+    Private Sub SaveChanges(Prompt As Boolean, Optional RemoveDeletedRowsFromDGV As Boolean = False)
         If Prompt Then
             If MessageBox.Show("There are unsaved changes, would you like to save them?", "", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) = DialogResult.No Then
                 Changes.Clear() 'delete the changes and then exit
@@ -469,6 +469,17 @@ Public Class Form1
         End If
 
         Changes.Clear()
+
+        If RemoveDeletedRowsFromDGV Then
+            For i = 0 To DataGridView1.Rows.Count - 1
+                If i < DataGridView1.Rows.Count Then 'due to MS and their awesome coding, the DataGridView1.Rows.Count doesn't update in the For Loop conditions meaning it will cause an error without an additional check. I could just do an infinite loop and have an exit statement but this will create the integer and automatically add 1 to it so it does save on some coding
+                    If DataGridView1.Rows(i).DefaultCellStyle.BackColor = DeletedRowColor Then
+                        DataGridView1.Rows.RemoveAt(i)
+                        i -= 1
+                    End If
+                End If
+            Next
+        End If
     End Sub
 
     Private Function ChangesContainsPKAndColName(PrimayKey As Int32, ColName As String) As Int32
@@ -498,10 +509,19 @@ Public Class Form1
                         End If
                     End If
                 End If
+
             Next
 
             Changes.Add(TempArray)
-            DataGridView1.Rows.RemoveAt(Row.Index)
+            ' DataGridView1.Rows.RemoveAt(Row.Index)
+            Row.DefaultCellStyle.BackColor = DeletedRowColor
+            Row.DefaultCellStyle.SelectionBackColor = Color.Transparent 'disables the selection color
+            Row.DefaultCellStyle.SelectionForeColor = Color.Transparent 'disables the selection color
+            Row.Selected = False  'since it doesn't update until you unselect it manually I added this
+            For Each Cell As DataGridViewCell In Row.Cells
+                Cell.ToolTipText = "This row was deleted"
+            Next
+            Row.ReadOnly = True
         Next
     End Sub
 
