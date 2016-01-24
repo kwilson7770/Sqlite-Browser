@@ -1,4 +1,5 @@
-﻿Imports System.Data.SQLite
+﻿Imports System.ComponentModel
+Imports System.Data.SQLite
 'Make a refrence to C:\Program Files\System.Data.SQLite\2010\bin\System.Data.SQLite.dll
 'this is 64bit only due to sqlite being 64bit dll
 
@@ -132,7 +133,7 @@ Public Class Form1
             For i = 0 To Schema.Rows.Count - 1
                 ToReturn(i) = Schema.Rows(i) !TABLE_NAME
                 ' Messagebox.Show(Schema.Rows(i) !TABLE_NAME)
-                'If Not Schema.Rows(i) !TABLE_NAME = "sqlite_sequence" Then ComboBoxTable.Items.Add(Schema.Rows(i) !TABLE_NAME)
+                'If Not Schema.Rows(i) !TABLE_NAME = "sqlite_sequence" Then TableName.Items.Add(Schema.Rows(i) !TABLE_NAME)
             Next
 
             MyConnection.Close()
@@ -203,6 +204,7 @@ Public Class Form1
             MyConnection.Open()
             For Each TheCommand As SQLiteCommand In Commands 'batch processes the commands
                 TheCommand.ExecuteNonQuery()
+                TheCommand.Dispose()
             Next
             MyConnection.Close()
         End Using
@@ -255,6 +257,18 @@ Public Class Form1
         End Select
         Return Nothing
     End Function
+
+    Private Sub DeleteRow(DataBasePath As String, ID As Integer)
+        Using MyConnection As New SQLite.SQLiteConnection("Data Source=" & DataBasePath & ";")
+            Using MyCommand As New SQLiteCommand(MyConnection)
+                MyCommand.CommandText = "DELETE FROM " & TableName & " WHERE id = @id;"
+                MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
+                MyConnection.Open()
+                MyCommand.ExecuteNonQuery()
+                MyConnection.Close()
+            End Using
+        End Using
+    End Sub
 #End Region
 
 #Region "Loading/Closing Stuff"
@@ -343,7 +357,7 @@ Public Class Form1
     '    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
     '    MyConnection.Open()
     '    MyCommand = MyConnection.CreateCommand
-    '    ''MyCommand.CommandText = "INSERT INTO " & ComboBoxTable.SelectedItem & "(col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment)"
+    '    ''MyCommand.CommandText = "INSERT INTO " & TableName.SelectedItem & "(col" & DBCol.TheDate & ", col" & DBCol.Amount & ", col" & DBCol.Store & ", col" & DBCol.Category & ", col" & DBCol.Comment & ") VALUES (@thedate, @amount, @store, @category, @comment)"
     '    'Sets the meaning of the parameters.
     '    '(@thedate, @amount, @store, @category, @comment)
     '    MyCommand.Parameters.Add("@thedate", DbType.String).Value = TheDate
@@ -354,10 +368,10 @@ Public Class Form1
     '    'Runs Query
     '    MyCommand.ExecuteNonQuery()
 
-    '    ''MyCommand.CommandText = "SELECT LAST_INSERT_ROWID() FROM " & ComboBoxTable.SelectedItem
+    '    ''MyCommand.CommandText = "SELECT LAST_INSERT_ROWID() FROM " & TableName.SelectedItem
     '    MyCommand.Parameters.Clear()
     '    Dim LastRowId As Integer = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
-    '    ''MyCommand.CommandText = "SELECT * FROM " & ComboBoxTable.SelectedItem & " WHERE id=(@lastrowid)"
+    '    ''MyCommand.CommandText = "SELECT * FROM " & TableName.SelectedItem & " WHERE id=(@lastrowid)"
     '    MyCommand.Parameters.Add("@lastrowid", DbType.Int32).Value = LastRowId
     '    NewID = MyCommand.ExecuteScalar() 'only finds 1 cell = Scalar
 
@@ -365,20 +379,6 @@ Public Class Form1
     '    MyConnection.Close()
     '    Return NewID
     'End Function
-
-    ''Private Sub DeleteField(DataBasePath As String, ID As Integer)
-    ''    Dim MyConnection As New SQLite.SQLiteConnection()
-    ''    Dim MyCommand As SQLiteCommand
-    ''    MyConnection.ConnectionString = "Data Source=" & DataBasePath & ";"
-    ''    MyConnection.Open()
-    ''    MyCommand = MyConnection.CreateCommand
-    ''    'SQL query to Delete Table
-    ''    ''MyCommand.CommandText = "DELETE FROM " & ComboBoxTable.SelectedItem & "WHERE id = (@id);"
-    ''    MyCommand.Parameters.Add("@id", DbType.Int32).Value = ID
-    ''    MyCommand.ExecuteNonQuery()
-    ''    MyCommand.Dispose()
-    ''    MyConnection.Close()
-    ''End Sub
 
     ''Private Sub CreateTable(DataBasePath As String, TableName As String)
     ''    Dim MyConnection As New SQLite.SQLiteConnection
@@ -419,57 +419,105 @@ Public Class Form1
 
     Private Sub SaveChanges(Prompt As Boolean)
         If Prompt Then
-            If MessageBox.Show("There are unsaved changes, would you like to save them?", "", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) = DialogResult.No Then Exit Sub
+            If MessageBox.Show("There are unsaved changes, would you like to save them?", "", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) = DialogResult.No Then
+                Changes.Clear() 'delete the changes and then exit
+                Exit Sub
+            End If
         End If
         Changes.Sort(New FirstElementJaggedComparer) 'A custom sorting class that sorts the first elements in the array and tries to convert them to doubles for better sorting
         Dim GroupedChanges, TempCol, TempValue As New ArrayList 'All used to group together the changes with the same ID to send fewer SQL update commands
         Dim LastPK = ""
-        For Each i In Changes
-            If i(ChangeIndex.PrimayKey) = LastPK Then
-                'since the PK is the same, group these together and add them to the temp arrays
-                TempCol.Add(i(ChangeIndex.ColName))
-                TempValue.Add(i(ChangeIndex.NewValue))
-            Else
-                'Adds the grouped together values with the primary key to a jagged array. The first time it will not do this so an if statement prevents errors
-                If TempCol.Count > 0 Then 'to do sort these so they are in the order of the columns in the database (if it is more efficent with sqlite)
-                    GroupedChanges.Add({TempCol.ToArray, TempValue.ToArray, LastPK})
-                End If
 
-                'Resets the temp array lists for the new group
-                TempCol.Clear()
-                TempValue.Clear()
-                LastPK = i(ChangeIndex.PrimayKey) 'updates the last PK to be the current one
-                'Adds the current item to the temp arrays
-                TempCol.Add(i(ChangeIndex.ColName))
-                TempValue.Add(i(ChangeIndex.NewValue))
-            End If
+        For Each i In Changes
+            Select Case i(ChangeIndex.ChangeType)
+                Case ChangeType.ModfiyVaule
+                    If i(ChangeIndex.PrimayKey) = LastPK Then
+                        'since the PK is the same, group these together and add them to the temp arrays
+                        TempCol.Add(i(ChangeIndex.ColName))
+                        TempValue.Add(i(ChangeIndex.NewValue))
+                    Else
+                        'Adds the grouped together values with the primary key to a jagged array. The first time it will not do this so an if statement prevents errors
+                        If TempCol.Count > 0 Then 'to do sort these so they are in the order of the columns in the database (if it is more efficent with sqlite)
+                            GroupedChanges.Add({TempCol.ToArray, TempValue.ToArray, LastPK})
+                        End If
+
+                        'Resets the temp array lists for the new group
+                        TempCol.Clear()
+                        TempValue.Clear()
+                        LastPK = i(ChangeIndex.PrimayKey) 'updates the last PK to be the current one
+                        'Adds the current item to the temp arrays
+                        TempCol.Add(i(ChangeIndex.ColName))
+                        TempValue.Add(i(ChangeIndex.NewValue))
+                    End If
+                Case ChangeType.DeleteRow
+                    DeleteRow(TextBoxDBPath.Text, i(ChangeIndex.PrimayKey))
+                Case ChangeType.InsertRow
+                    'To Do
+            End Select
         Next
 
-        If TempCol.Count > 0 Then 'don't forget about the last group!
+        If TempCol.Count > 0 Then 'This is for when making changes to the fields. This will not run unless there was something changed. This make my changes logic a lot simpler to write above and is why this is out here instead of inside of the loop
             GroupedChanges.Add({TempCol.ToArray, TempValue.ToArray, LastPK})
             TempCol.Clear()
             TempValue.Clear()
-        End If
 
-        For Each i In GroupedChanges
+            'This will process all of the GroupChanges
             UpdateFields(TextBoxDBPath.Text, DataGridView1.Columns.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex))).Name, GroupedChanges)
-        Next
+        End If
 
         Changes.Clear()
     End Sub
 
     Private Function ChangesContainsPKAndColName(PrimayKey As Int32, ColName As String) As Int32
         For i = 0 To Changes.Count - 1
-            If Changes(i)(ChangeIndex.PrimayKey) = PrimayKey And Changes(i)(ChangeIndex.ColName).Contains(ColName) Then Return i
+            If Changes(i)(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule Then
+                If Changes(i)(ChangeIndex.PrimayKey) = PrimayKey And Changes(i)(ChangeIndex.ColName).Contains(ColName) Then Return i
+            End If
         Next
         Return -1
     End Function
+
+    Private Sub DeleteRowToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DeleteRowToolStripMenuItem.Click
+        For Each Row As DataGridViewRow In DataGridView1.SelectedRows
+            'Create a temp array and then store only the necessary information
+            Dim TempArray(System.Enum.GetValues(GetType(ChangeIndex)).Length - 1)
+            TempArray(ChangeIndex.PrimayKey) = DataGridView1.Item(CInt(DataGridView1.Tag(DGVTag.PrimaryKeyColIndex)), Row.Index).Value
+            TempArray(ChangeIndex.ChangeType) = ChangeType.DeleteRow
+
+            'Delete all ModifyValue changes that match the same PK since the row is going to be delete. This should also prevent any bugs in the future (e.g. trying to process a modify value change after the row delete change)
+            For i = 0 To Changes.Count - 1
+                If i < Changes.Count Then 'due to MS and their awesome coding, the Changes.Count doesn't update in the For Loop conditions meaning it will cause an error without an additional check. I could just do an infinite loop and have an exit statement but this will create the integer and automatically add 1 to it so it does save on some coding
+                    If Changes(i)(ChangeIndex.ChangeType) = ChangeType.ModfiyVaule Then
+                        If Changes(i)(ChangeIndex.PrimayKey) = TempArray(ChangeIndex.PrimayKey) Then
+                            'If the changes arraylist contains the same PK for a ModifyValue change when I am going to delete the row, remove it
+                            Changes.RemoveAt(i)
+                            i -= 1
+                        End If
+                    End If
+                End If
+            Next
+
+            Changes.Add(TempArray)
+            DataGridView1.Rows.RemoveAt(Row.Index)
+        Next
+    End Sub
+
+    Private Sub ContextMenuStrip1_Opening(sender As Object, e As CancelEventArgs) Handles ContextMenuStrip1.Opening
+        If DataGridView1.SelectedRows.Count = 1 Then
+            DeleteRowToolStripMenuItem.Text = "Delete Row"
+        ElseIf DataGridView1.SelectedRows.Count > 1 Then
+            DeleteRowToolStripMenuItem.Text = "Delete " & DataGridView1.SelectedRows.Count & " Rows"
+        Else
+            e.Cancel = True
+        End If
+    End Sub
 #End Region
 End Class
 Class FirstElementJaggedComparer 'A custom sorting class that sorts the first elements in the array and tries to convert them to doubles for better sorting
     Implements IComparer
     Public Function Compare(ByVal x As Object, ByVal y As Object) As Integer Implements IComparer.Compare
-        Dim Sort1 = x(0), Sort2 = y(0)
+        Dim Sort1 = x(Form1.ChangeIndex.PrimayKey), Sort2 = y(Form1.ChangeIndex.PrimayKey)
+        'PK can be a string or an int or a double. So I will just convert them to a double since I do not know what type of number they are from the IsNumeric function
         If IsNumeric(Sort1) Then Sort1 = CDbl(Sort1)
         If IsNumeric(Sort2) Then Sort2 = CDbl(Sort2)
         Return Sort1.CompareTo(Sort2)
