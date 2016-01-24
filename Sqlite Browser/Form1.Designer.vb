@@ -24,6 +24,8 @@ Partial Class Form1
     Private Sub InitializeComponent()
         Me.components = New System.ComponentModel.Container()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
+        Me.ContextMenuStrip1 = New System.Windows.Forms.ContextMenuStrip(Me.components)
+        Me.DeleteRowToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ComboBoxTables = New System.Windows.Forms.ComboBox()
         Me.Panel1 = New System.Windows.Forms.Panel()
         Me.ButtonSave = New System.Windows.Forms.Button()
@@ -33,11 +35,9 @@ Partial Class Form1
         Me.Label1 = New System.Windows.Forms.Label()
         Me.ListBoxDebugger = New System.Windows.Forms.ListBox()
         Me.TimerDebugger = New System.Windows.Forms.Timer(Me.components)
-        Me.ContextMenuStrip1 = New System.Windows.Forms.ContextMenuStrip(Me.components)
-        Me.DeleteRowToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
-        Me.Panel1.SuspendLayout()
         Me.ContextMenuStrip1.SuspendLayout()
+        Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
         '
         'DataGridView1
@@ -47,14 +47,26 @@ Partial Class Form1
         Me.DataGridView1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.DataGridView1.Location = New System.Drawing.Point(0, 64)
         Me.DataGridView1.Name = "DataGridView1"
-        Me.DataGridView1.Size = New System.Drawing.Size(688, 297)
+        Me.DataGridView1.Size = New System.Drawing.Size(720, 297)
         Me.DataGridView1.TabIndex = 3
+        '
+        'ContextMenuStrip1
+        '
+        Me.ContextMenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.DeleteRowToolStripMenuItem})
+        Me.ContextMenuStrip1.Name = "ContextMenuStrip1"
+        Me.ContextMenuStrip1.Size = New System.Drawing.Size(134, 26)
+        '
+        'DeleteRowToolStripMenuItem
+        '
+        Me.DeleteRowToolStripMenuItem.Name = "DeleteRowToolStripMenuItem"
+        Me.DeleteRowToolStripMenuItem.Size = New System.Drawing.Size(133, 22)
+        Me.DeleteRowToolStripMenuItem.Text = "Delete Row"
         '
         'ComboBoxTables
         '
         Me.ComboBoxTables.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBoxTables.FormattingEnabled = True
-        Me.ComboBoxTables.Location = New System.Drawing.Point(450, 36)
+        Me.ComboBoxTables.Location = New System.Drawing.Point(470, 37)
         Me.ComboBoxTables.Name = "ComboBoxTables"
         Me.ComboBoxTables.Size = New System.Drawing.Size(126, 21)
         Me.ComboBoxTables.TabIndex = 4
@@ -70,12 +82,12 @@ Partial Class Form1
         Me.Panel1.Dock = System.Windows.Forms.DockStyle.Top
         Me.Panel1.Location = New System.Drawing.Point(0, 0)
         Me.Panel1.Name = "Panel1"
-        Me.Panel1.Size = New System.Drawing.Size(688, 64)
+        Me.Panel1.Size = New System.Drawing.Size(720, 64)
         Me.Panel1.TabIndex = 5
         '
         'ButtonSave
         '
-        Me.ButtonSave.Location = New System.Drawing.Point(582, 34)
+        Me.ButtonSave.Location = New System.Drawing.Point(602, 36)
         Me.ButtonSave.Name = "ButtonSave"
         Me.ButtonSave.Size = New System.Drawing.Size(94, 23)
         Me.ButtonSave.TabIndex = 9
@@ -86,7 +98,7 @@ Partial Class Form1
         '
         Me.ButtonLoadDB.Location = New System.Drawing.Point(353, 36)
         Me.ButtonLoadDB.Name = "ButtonLoadDB"
-        Me.ButtonLoadDB.Size = New System.Drawing.Size(91, 23)
+        Me.ButtonLoadDB.Size = New System.Drawing.Size(111, 23)
         Me.ButtonLoadDB.TabIndex = 8
         Me.ButtonLoadDB.Text = "Load Database"
         Me.ButtonLoadDB.UseVisualStyleBackColor = True
@@ -110,7 +122,7 @@ Partial Class Form1
         'Label1
         '
         Me.Label1.AutoSize = True
-        Me.Label1.Location = New System.Drawing.Point(447, 20)
+        Me.Label1.Location = New System.Drawing.Point(470, 22)
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(39, 13)
         Me.Label1.TabIndex = 5
@@ -123,7 +135,7 @@ Partial Class Form1
         Me.ListBoxDebugger.HorizontalScrollbar = True
         Me.ListBoxDebugger.Location = New System.Drawing.Point(0, 361)
         Me.ListBoxDebugger.Name = "ListBoxDebugger"
-        Me.ListBoxDebugger.Size = New System.Drawing.Size(688, 69)
+        Me.ListBoxDebugger.Size = New System.Drawing.Size(720, 69)
         Me.ListBoxDebugger.TabIndex = 6
         Me.ListBoxDebugger.Visible = False
         '
@@ -131,23 +143,11 @@ Partial Class Form1
         '
         Me.TimerDebugger.Interval = 500
         '
-        'ContextMenuStrip1
-        '
-        Me.ContextMenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.DeleteRowToolStripMenuItem})
-        Me.ContextMenuStrip1.Name = "ContextMenuStrip1"
-        Me.ContextMenuStrip1.Size = New System.Drawing.Size(134, 26)
-        '
-        'DeleteRowToolStripMenuItem
-        '
-        Me.DeleteRowToolStripMenuItem.Name = "DeleteRowToolStripMenuItem"
-        Me.DeleteRowToolStripMenuItem.Size = New System.Drawing.Size(133, 22)
-        Me.DeleteRowToolStripMenuItem.Text = "Delete Row"
-        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(688, 430)
+        Me.ClientSize = New System.Drawing.Size(720, 430)
         Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.Panel1)
         Me.Controls.Add(Me.ListBoxDebugger)
@@ -155,9 +155,9 @@ Partial Class Form1
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "Sqlite Browser"
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
+        Me.ContextMenuStrip1.ResumeLayout(False)
         Me.Panel1.ResumeLayout(False)
         Me.Panel1.PerformLayout()
-        Me.ContextMenuStrip1.ResumeLayout(False)
         Me.ResumeLayout(False)
 
     End Sub
