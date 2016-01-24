@@ -1,0 +1,15 @@
+The following are dependencies for this program:
+
+Microsoft .NET Framework 4.5.2 (this can be changed, but the code will have to be updated to reflect the other framework)
+At the time of this writing, the link to download this dependency is:
+https://www.microsoft.com/en-us/download/details.aspx?id=42643
+
+SQLite
+At the time of this writing this dependency can be obtain from NuGet these two ways:
+1. via this link: https://www.nuget.org/packages/System.Data.SQLite.Core
+2. via this command: Install-Package System.Data.SQLite.Core
+
+You can also obtain it from this website (not recommended due to additional work required and issues when changing the processor and, at the time of this writing, a bug with the 64 bit version requiring a manual copy of another dependency that was not handled when the correct DLL is referenced):
+http://system.data.sqlite.org/index.html/doc/trunk/www/downloads.wiki 
+
+64 bit processor (this can be changed, but you might need to update other dependences)
